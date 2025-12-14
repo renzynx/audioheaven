@@ -34,9 +34,7 @@ jobs:
         run: bun run build
 
       - name: Create release archive
-        run: |
-          cd dist
-          zip -r ../audioheaven-dist.zip .
+        run: zip -r audioheaven-dist.zip dist
 
       - name: Get version
         id: version
