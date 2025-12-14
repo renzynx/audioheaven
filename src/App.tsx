@@ -159,7 +159,7 @@ export function App() {
 	}, [downloadId, processedFileName]);
 
 	return (
-		<div className="min-h-screen bg-background">
+		<div className="min-h-screen bg-background overflow-x-hidden">
 			{/* Background gradient */}
 			<div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5 pointer-events-none" />
 			<div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent pointer-events-none" />
@@ -167,9 +167,9 @@ export function App() {
 			<div className="relative z-10">
 				{/* Header */}
 				<header className="border-b border-border/50 backdrop-blur-sm bg-background/80 sticky top-0 z-20">
-					<div className="container mx-auto px-6 py-6 flex items-center justify-between">
+					<div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
 						<div className="flex items-center gap-3">
-							<h1 className="text-2xl font-bold tracking-tight">AudioHeaven</h1>
+							<h1 className="text-xl sm:text-2xl font-bold tracking-tight">AudioHeaven</h1>
 						</div>
 						<div className="flex items-center gap-2">
 							<ThemeToggle />
@@ -186,8 +186,8 @@ export function App() {
 				</header>
 
 				{/* Main Content */}
-				<main className="container mx-auto px-4 py-8 max-w-4xl">
-					<div className="space-y-8">
+				<main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-4xl">
+					<div className="space-y-6 sm:space-y-8">
 						{/* Hero Section */}
 						<div className="text-center space-y-4 py-8">
 							<h2 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">

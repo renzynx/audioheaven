@@ -130,7 +130,7 @@ export function AudioPlayer({
 	}
 
 	return (
-		<div className="bg-card border border-border rounded-xl p-4 space-y-4">
+		<div className="w-full max-w-full bg-card border border-border rounded-xl p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-hidden box-border">
 			<audio ref={audioRef} src={src} preload="metadata" />
 
 			{label && (
@@ -139,24 +139,24 @@ export function AudioPlayer({
 				</p>
 			)}
 
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-2 sm:gap-3">
 				<Button
 					variant="outline"
 					size="icon"
 					onClick={togglePlay}
-					className="h-12 w-12 rounded-full shrink-0"
+					className="h-10 w-10 sm:h-12 sm:w-12 rounded-full shrink-0"
 				>
 					{isPlaying ? (
-						<Pause className="w-5 h-5" />
+						<Pause className="w-4 h-4 sm:w-5 sm:h-5" />
 					) : (
-						<Play className="w-5 h-5 ml-0.5" />
+						<Play className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" />
 					)}
 				</Button>
 
-				<div className="flex-1 space-y-2">
+				<div className="flex-1 min-w-0 space-y-2 overflow-hidden">
 					<p className="font-medium text-sm truncate">{fileName}</p>
-					<div className="flex items-center gap-3">
-						<span className="text-xs text-muted-foreground w-10 text-right">
+					<div className="flex items-center gap-1.5 sm:gap-3">
+						<span className="text-xs text-muted-foreground w-8 sm:w-10 text-right shrink-0">
 							{formatTime(currentTime)}
 						</span>
 						<Slider
@@ -164,18 +164,18 @@ export function AudioPlayer({
 							onValueChange={handleSeek}
 							max={duration || 100}
 							step={0.1}
-							className="flex-1"
+							className="flex-1 min-w-0"
 						/>
-						<span className="text-xs text-muted-foreground w-10">
+						<span className="text-xs text-muted-foreground w-8 sm:w-10 shrink-0">
 							{formatTime(duration)}
 						</span>
 					</div>
 				</div>
 			</div>
 
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<Button variant="ghost" size="icon" onClick={toggleMute}>
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<div className="flex items-center gap-1 sm:gap-2">
+					<Button variant="ghost" size="icon" onClick={toggleMute} className="shrink-0">
 						{isMuted ? (
 							<VolumeX className="w-4 h-4" />
 						) : (
@@ -187,17 +187,17 @@ export function AudioPlayer({
 						onValueChange={handleVolumeChange}
 						max={1}
 						step={0.01}
-						className="w-24"
+						className="w-12 sm:w-24"
 					/>
-					<Button variant="ghost" size="icon" onClick={handleRestart}>
+					<Button variant="ghost" size="icon" onClick={handleRestart} className="shrink-0">
 						<RotateCcw className="w-4 h-4" />
 					</Button>
 				</div>
 
 				{showDownload && onDownload && (
-					<Button onClick={onDownload} size="sm" variant="secondary">
-						<Download className="w-4 h-4 mr-2" />
-						Download
+					<Button onClick={onDownload} size="sm" variant="secondary" className="shrink-0">
+						<Download className="w-4 h-4 sm:mr-2" />
+						<span className="hidden sm:inline">Download</span>
 					</Button>
 				)}
 			</div>
