@@ -3,6 +3,7 @@ import { Github } from "lucide-react";
 import { AudioUploader } from "./components/AudioUploader";
 import { EffectsPanel } from "./components/EffectsPanel";
 import { TonePlayer } from "./components/TonePlayer";
+import { EffectPreviewPlayer } from "./components/EffectPreviewPlayer";
 import {
 	ProcessingStatus,
 	type ProcessingState,
@@ -46,6 +47,11 @@ export function App() {
 
 	// Config state
 	const [maxSizeMB, setMaxSizeMB] = useState(100);
+
+	// Preview effect options (for real-time Tone.js preview)
+	const [previewEffectOptions, setPreviewEffectOptions] = useState<
+		Omit<AudioProcessingOptions, "preset"> | null
+	>(null);
 
 	// Fetch config on mount
 	useEffect(() => {
@@ -235,10 +241,21 @@ export function App() {
 							</h3>
 							<EffectsPanel
 								onApply={handleApplyEffect}
+								onPreviewChange={setPreviewEffectOptions}
 								isProcessing={processingState === "processing"}
 								disabled={!fileId}
 							/>
 						</section>
+
+						{/* Real-time Effect Preview */}
+						{originalAudioUrl && uploadedFile && previewEffectOptions && (
+							<EffectPreviewPlayer
+								src={originalAudioUrl}
+								effectOptions={previewEffectOptions}
+								fileName={uploadedFile.name}
+								label="Effect Preview (Real-time)"
+							/>
+						)}
 
 						{/* Processing Status */}
 						<ProcessingStatus

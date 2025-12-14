@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
 	Zap,
 	Clock,
@@ -31,6 +31,8 @@ interface EffectsPanelProps {
 	onApply: (
 		options: Omit<AudioProcessingOptions, "preset"> & { preset: EffectPreset },
 	) => void;
+	/** Called when effect options change for real-time preview */
+	onPreviewChange?: (options: Omit<AudioProcessingOptions, "preset"> | null) => void;
 	isProcessing: boolean;
 	disabled: boolean;
 }
@@ -42,66 +44,67 @@ const PRESETS: {
 	description: string;
 	color: string;
 }[] = [
-	{
-		id: "nightcore",
-		name: "Nightcore",
-		icon: <Zap className="w-5 h-5" />,
-		description: "Speed up + higher pitch",
-		color: "from-pink-500 to-purple-500",
-	},
-	{
-		id: "slowreverb",
-		name: "Slow + Reverb",
-		icon: <Clock className="w-5 h-5" />,
-		description: "Slow down + echo",
-		color: "from-blue-500 to-cyan-500",
-	},
-	{
-		id: "vaporwave",
-		name: "Vaporwave",
-		icon: <Disc3 className="w-5 h-5" />,
-		description: "Slow + lower pitch",
-		color: "from-purple-500 to-pink-500",
-	},
-	{
-		id: "daycore",
-		name: "Daycore",
-		icon: <Moon className="w-5 h-5" />,
-		description: "Slightly slowed",
-		color: "from-orange-400 to-yellow-400",
-	},
-	{
-		id: "bassboost",
-		name: "Bass Boost",
-		icon: <Volume2 className="w-5 h-5" />,
-		description: "Enhanced bass",
-		color: "from-red-500 to-orange-500",
-	},
-	{
-		id: "8d",
-		name: "8D Audio",
-		icon: <Headphones className="w-5 h-5" />,
-		description: "Surround panning",
-		color: "from-green-400 to-teal-500",
-	},
-	{
-		id: "chipmunk",
-		name: "Chipmunk",
-		icon: <Mic2 className="w-5 h-5" />,
-		description: "High pitched voice",
-		color: "from-amber-400 to-orange-400",
-	},
-	{
-		id: "deepvoice",
-		name: "Deep Voice",
-		icon: <VolumeX className="w-5 h-5" />,
-		description: "Low pitched voice",
-		color: "from-slate-500 to-slate-700",
-	},
-];
+		{
+			id: "nightcore",
+			name: "Nightcore",
+			icon: <Zap className="w-5 h-5" />,
+			description: "Speed up + higher pitch",
+			color: "from-pink-500 to-purple-500",
+		},
+		{
+			id: "slowreverb",
+			name: "Slow + Reverb",
+			icon: <Clock className="w-5 h-5" />,
+			description: "Slow down + echo",
+			color: "from-blue-500 to-cyan-500",
+		},
+		{
+			id: "vaporwave",
+			name: "Vaporwave",
+			icon: <Disc3 className="w-5 h-5" />,
+			description: "Slow + lower pitch",
+			color: "from-purple-500 to-pink-500",
+		},
+		{
+			id: "daycore",
+			name: "Daycore",
+			icon: <Moon className="w-5 h-5" />,
+			description: "Slightly slowed",
+			color: "from-orange-400 to-yellow-400",
+		},
+		{
+			id: "bassboost",
+			name: "Bass Boost",
+			icon: <Volume2 className="w-5 h-5" />,
+			description: "Enhanced bass",
+			color: "from-red-500 to-orange-500",
+		},
+		{
+			id: "8d",
+			name: "8D Audio",
+			icon: <Headphones className="w-5 h-5" />,
+			description: "Surround panning",
+			color: "from-green-400 to-teal-500",
+		},
+		{
+			id: "chipmunk",
+			name: "Chipmunk",
+			icon: <Mic2 className="w-5 h-5" />,
+			description: "High pitched voice",
+			color: "from-amber-400 to-orange-400",
+		},
+		{
+			id: "deepvoice",
+			name: "Deep Voice",
+			icon: <VolumeX className="w-5 h-5" />,
+			description: "Low pitched voice",
+			color: "from-slate-500 to-slate-700",
+		},
+	];
 
 export function EffectsPanel({
 	onApply,
+	onPreviewChange,
 	isProcessing,
 	disabled,
 }: EffectsPanelProps) {
@@ -113,12 +116,27 @@ export function EffectsPanel({
 	const [customPitch, setCustomPitch] = useState(0);
 	const [customReverb, setCustomReverb] = useState(0);
 	const [customBass, setCustomBass] = useState(0);
+	const [activeTab, setActiveTab] = useState("presets");
+
+	// Emit preview changes when custom values change and custom tab is active
+	useEffect(() => {
+		if (activeTab === "custom") {
+			onPreviewChange?.({
+				speed: customSpeed,
+				pitch: customPitch,
+				reverb: customReverb,
+				bassBoost: customBass,
+			});
+		}
+	}, [activeTab, customSpeed, customPitch, customReverb, customBass, onPreviewChange]);
 
 	const handlePresetSelect = useCallback(
 		(presetId: Exclude<EffectPreset, "custom">) => {
 			setSelectedPreset(presetId);
+			// Notify parent for real-time preview
+			onPreviewChange?.(EFFECT_PRESETS[presetId]);
 		},
-		[],
+		[onPreviewChange],
 	);
 
 	const handleApplyPreset = useCallback(() => {
@@ -141,7 +159,7 @@ export function EffectsPanel({
 
 	return (
 		<div className="bg-card border border-border rounded-xl overflow-hidden">
-			<Tabs defaultValue="presets" className="w-full">
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 				<TabsList className="w-full rounded-none border-b bg-muted/50 p-1 h-auto">
 					<TabsTrigger
 						value="presets"
