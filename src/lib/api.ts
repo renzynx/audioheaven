@@ -2,7 +2,6 @@ import type { EffectPreset, UploadResponse, ApiError } from "../types";
 
 type ApiResponse<T> = T | ApiError;
 
-// Threshold for using chunked upload (5MB)
 const CHUNK_THRESHOLD = 5 * 1024 * 1024;
 
 interface UploadConfig {
@@ -36,12 +35,10 @@ export async function uploadAudio(
 	file: File,
 	onProgress?: (percent: number) => void,
 ): Promise<ApiResponse<UploadResponse>> {
-	// Use chunked upload for large files
 	if (file.size > CHUNK_THRESHOLD) {
 		return uploadChunked(file, onProgress);
 	}
 
-	// Simple upload for small files
 	const formData = new FormData();
 	formData.append("file", file);
 
@@ -58,7 +55,6 @@ async function uploadChunked(
 	onProgress?: (percent: number) => void,
 ): Promise<ApiResponse<UploadResponse>> {
 	try {
-		// 1. Initialize upload
 		const initResponse = await fetch("/api/audio/upload/init", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -77,7 +73,6 @@ async function uploadChunked(
 		const { uploadId, chunkSize, totalChunks } =
 			initResult.data as ChunkedUploadInit;
 
-		// 2. Upload chunks
 		for (let i = 0; i < totalChunks; i++) {
 			const start = i * chunkSize;
 			const end = Math.min(start + chunkSize, file.size);
@@ -95,19 +90,16 @@ async function uploadChunked(
 
 			const chunkResult = await chunkResponse.json();
 			if (!chunkResult.success) {
-				// Cancel upload on error
 				await cancelUpload(uploadId);
 				return chunkResult;
 			}
 
-			// Report progress
 			if (onProgress) {
 				const progress = ((i + 1) / totalChunks) * 100;
 				onProgress(progress);
 			}
 		}
 
-		// 3. Finalize upload
 		const finalizeResponse = await fetch("/api/audio/upload/finalize", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -184,7 +176,6 @@ export function subscribeToProgress(
 			const data = JSON.parse(e.data) as ProgressEvent;
 			onEvent(data);
 
-			// Auto-close on complete or error
 			if (data.type === "complete" || data.type === "error") {
 				eventSource.close();
 			}
@@ -195,9 +186,9 @@ export function subscribeToProgress(
 
 	eventSource.onerror = () => {
 		eventSource.close();
+		onEvent({ type: "error", error: "Connection lost" });
 	};
 
-	// Return cleanup function
 	return () => {
 		eventSource.close();
 	};

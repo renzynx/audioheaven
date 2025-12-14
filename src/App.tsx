@@ -128,7 +128,6 @@ export function App() {
 				const successResult = result as unknown as { data: { jobId: string } };
 				const jobId = successResult.data.jobId;
 
-				// Subscribe to progress via SSE
 				subscribeToProgress(jobId, (event) => {
 					if (event.type === "progress" && event.progress !== undefined) {
 						setProcessingProgress(event.progress);

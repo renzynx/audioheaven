@@ -1,7 +1,6 @@
 import { spawn, type ChildProcess } from "child_process";
 import { join } from "path";
-import { mkdtemp } from "fs/promises";
-import { tmpdir } from "os";
+import { mkdir } from "fs/promises";
 import type { AudioProcessingOptions } from "../../types";
 import { getUpload, buildFilterChain, setProcessedFile } from "./audio";
 
@@ -27,12 +26,15 @@ export interface JobEvent {
 
 const jobs = new Map<string, Job>();
 
+const OUTPUT_DIR = join(process.cwd(), "output");
+
 function generateId(): string {
 	return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-async function ensureTempDir(): Promise<string> {
-	return await mkdtemp(join(tmpdir(), "audioheaven-"));
+async function ensureOutputDir(): Promise<string> {
+	await mkdir(OUTPUT_DIR, { recursive: true });
+	return OUTPUT_DIR;
 }
 
 /**
@@ -64,9 +66,6 @@ export function startJob(
 	return { jobId };
 }
 
-/**
- * Process audio in background, emitting progress events
- */
 async function processInBackground(
 	job: Job,
 	upload: { path: string; name: string },
@@ -77,22 +76,19 @@ async function processInBackground(
 		emitEvent(job, { type: "progress", progress: 0 });
 
 		const downloadId = generateId();
-		const tempDir = await ensureTempDir();
+		const outputDir = await ensureOutputDir();
 
 		const baseName = upload.name.replace(/\.[^.]+$/, "");
 		const outputName = `${baseName}_${options.preset}.mp3`;
-		const outputPath = join(tempDir, `processed-${downloadId}.mp3`);
+		const outputPath = join(outputDir, `${outputName.replace(/\.mp3$/, "")}-${downloadId}.mp3`);
 
 		const filters = buildFilterChain(options);
 		const filterArg = filters.length > 0 ? ["-af", filters.join(",")] : [];
 
-		// Build FFmpeg command with progress output
 		const args = [
 			"-i",
 			upload.path,
 			"-y",
-			"-progress",
-			"pipe:1", // Output progress to stdout
 			...filterArg,
 			"-acodec",
 			"libmp3lame",
@@ -102,39 +98,37 @@ async function processInBackground(
 		];
 
 		let duration = 0;
+		let lastProgress = 0;
 
 		await new Promise<void>((resolve, reject) => {
 			const ffmpeg = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
 			job.process = ffmpeg;
 
-			let stderrData = "";
-
-			// Parse stderr for duration
 			ffmpeg.stderr?.on("data", (data: Buffer) => {
-				stderrData += data.toString();
-				// Extract duration from stderr: Duration: 00:03:45.67
-				const durationMatch = stderrData.match(
-					/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/,
-				);
-				if (durationMatch && duration === 0) {
-					const [, hours = "0", minutes = "0", seconds = "0"] = durationMatch;
-					duration =
-						parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
-				}
-			});
-
-			// Parse stdout for progress
-			ffmpeg.stdout?.on("data", (data: Buffer) => {
 				const output = data.toString();
-				// Parse out_time_ms from progress output
-				const timeMatch = output.match(/out_time_ms=(\d+)/);
-				if (timeMatch && timeMatch[1] && duration > 0) {
-					const currentMs = parseInt(timeMatch[1]) / 1000000; // Convert microseconds to seconds
-					const progress = Math.min(
-						99,
-						Math.round((currentMs / duration) * 100),
+
+				// Parse duration from the initial file info
+				if (duration === 0) {
+					const durationMatch = output.match(
+						/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/,
 					);
-					if (progress > job.progress) {
+					if (durationMatch) {
+						const [, hours = "0", mins = "0", secs = "0", centis = "0"] = durationMatch;
+						duration =
+							parseInt(hours) * 3600 +
+							parseInt(mins) * 60 +
+							parseInt(secs) +
+							parseInt(centis) / 100;
+					}
+				}
+
+				const timeMatch = output.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
+				if (timeMatch && duration > 0) {
+					const [, h = "0", m = "0", s = "0", cs = "0"] = timeMatch;
+					const currentSec = parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(s) + parseInt(cs) / 100;
+					const progress = Math.min(99, Math.round((currentSec / duration) * 100));
+					if (progress > lastProgress) {
+						lastProgress = progress;
 						job.progress = progress;
 						emitEvent(job, { type: "progress", progress });
 					}
@@ -154,7 +148,6 @@ async function processInBackground(
 			});
 		});
 
-		// Store processed file
 		setProcessedFile(downloadId, outputPath, outputName);
 
 		job.status = "complete";
@@ -168,9 +161,6 @@ async function processInBackground(
 	}
 }
 
-/**
- * Emit event to all subscribers
- */
 function emitEvent(job: Job, event: JobEvent): void {
 	for (const callback of job.subscribers) {
 		try {
@@ -181,16 +171,10 @@ function emitEvent(job: Job, event: JobEvent): void {
 	}
 }
 
-/**
- * Get job by ID
- */
 export function getJob(jobId: string): Job | undefined {
 	return jobs.get(jobId);
 }
 
-/**
- * Subscribe to job events
- */
 export function subscribeToJob(
 	jobId: string,
 	callback: (event: JobEvent) => void,
@@ -202,25 +186,11 @@ export function subscribeToJob(
 
 	job.subscribers.add(callback);
 
-	// If job already complete/error, immediately emit
-	if (job.status === "complete" && job.result) {
-		callback({ type: "complete", result: job.result });
-	} else if (job.status === "error") {
-		callback({ type: "error", error: job.error });
-	} else {
-		// Emit current progress
-		callback({ type: "progress", progress: job.progress });
-	}
-
-	// Return unsubscribe function
 	return () => {
 		job.subscribers.delete(callback);
 	};
 }
 
-/**
- * Clean up old jobs
- */
 export function cleanupOldJobs(maxAgeMs: number = 3600000): void {
 	const now = Date.now();
 	for (const [id, _job] of jobs.entries()) {

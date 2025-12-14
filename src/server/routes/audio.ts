@@ -76,7 +76,6 @@ export const audioRoutes = {
 					return error("fileName and fileSize required", { status: 400 });
 				}
 
-				// Allow any audio type - FFmpeg will handle conversion
 				if (mimeType && !mimeType.startsWith("audio/")) {
 					return error("Only audio files are allowed", { status: 400 });
 				}
@@ -192,7 +191,6 @@ export const audioRoutes = {
 					return error("No file provided", { status: 400 });
 				}
 
-				// Allow any audio type - FFmpeg handles conversion
 				if (!file.type.startsWith("audio/")) {
 					return error("Only audio files are allowed", { status: 400 });
 				}
@@ -252,7 +250,6 @@ export const audioRoutes = {
 					return error("Invalid preset", { status: 400 });
 				}
 
-				// Start job in background and return immediately
 				const { jobId } = startJob(fileId, options);
 				return success({ jobId });
 			} catch (err) {
@@ -275,32 +272,55 @@ export const audioRoutes = {
 			return error("Job not found", { status: 404 });
 		}
 
-		// Create SSE stream
 		const stream = new ReadableStream({
 			start(controller) {
 				const encoder = new TextEncoder();
 
 				const sendEvent = (data: object) => {
-					const message = `data: ${JSON.stringify(data)}\n\n`;
-					controller.enqueue(encoder.encode(message));
+					try {
+						const message = `data: ${JSON.stringify(data)}\n\n`;
+						controller.enqueue(encoder.encode(message));
+					} catch {
+						// Stream already closed
+					}
 				};
+
+				// Send initial state immediately
+				if (job.status === "complete" && job.result) {
+					sendEvent({ type: "complete", result: job.result });
+					controller.close();
+					return;
+				}
+				if (job.status === "error") {
+					sendEvent({ type: "error", error: job.error });
+					controller.close();
+					return;
+				}
+
+				sendEvent({ type: "progress", progress: job.progress });
 
 				const unsubscribe = subscribeToJob(jobId, (event) => {
 					sendEvent(event);
 
-					// Close stream on complete or error
 					if (event.type === "complete" || event.type === "error") {
 						setTimeout(() => {
 							unsubscribe();
-							controller.close();
+							try {
+								controller.close();
+							} catch {
+								// Already closed
+							}
 						}, 100);
 					}
 				});
 
-				// Handle client disconnect
 				req.signal?.addEventListener("abort", () => {
 					unsubscribe();
-					controller.close();
+					try {
+						controller.close();
+					} catch {
+						// Already closed
+					}
 				});
 			},
 		});

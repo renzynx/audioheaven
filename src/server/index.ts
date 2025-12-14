@@ -2,6 +2,7 @@ import { serve } from "bun";
 import { join } from "path";
 import { existsSync } from "fs";
 import { apiRoutes } from "./routes";
+import { startCleanupJob } from "./services/cleanup";
 
 const isProd = process.env.NODE_ENV === "production";
 const distDir = join(process.cwd(), "dist");
@@ -36,6 +37,7 @@ async function checkFFmpeg() {
 }
 
 await checkFFmpeg();
+startCleanupJob();
 
 const server = serve({
 	routes: {
@@ -45,27 +47,27 @@ const server = serve({
 	// Fallback handler for unmatched routes (production static file serving)
 	fetch: isProd
 		? async (req: Request) => {
-				const url = new URL(req.url);
+			const url = new URL(req.url);
 
-				// Try to serve the exact file
-				let filePath = join(distDir, url.pathname);
-				let file = Bun.file(filePath);
+			// Try to serve the exact file
+			let filePath = join(distDir, url.pathname);
+			let file = Bun.file(filePath);
 
-				if (await file.exists()) {
-					return new Response(file);
-				}
-
-				// Fall back to index.html for SPA routing
-				filePath = join(distDir, "index.html");
-				file = Bun.file(filePath);
-				if (await file.exists()) {
-					return new Response(file, {
-						headers: { "Content-Type": "text/html" },
-					});
-				}
-
-				return new Response("Not Found", { status: 404 });
+			if (await file.exists()) {
+				return new Response(file);
 			}
+
+			// Fall back to index.html for SPA routing
+			filePath = join(distDir, "index.html");
+			file = Bun.file(filePath);
+			if (await file.exists()) {
+				return new Response(file, {
+					headers: { "Content-Type": "text/html" },
+				});
+			}
+
+			return new Response("Not Found", { status: 404 });
+		}
 		: undefined,
 
 	development: !isProd && {
