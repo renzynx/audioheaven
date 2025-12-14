@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 import { Github } from "lucide-react";
 import { AudioUploader } from "./components/AudioUploader";
 import { EffectsPanel } from "./components/EffectsPanel";
-import { TonePlayer } from "./components/TonePlayer";
 import { EffectPreviewPlayer } from "./components/EffectPreviewPlayer";
 import {
 	ProcessingStatus,
@@ -14,7 +13,6 @@ import {
 	processAudio,
 	subscribeToProgress,
 	downloadAudio,
-	getDownloadUrl,
 	getUploadConfig,
 } from "./lib/api";
 import type { AudioProcessingOptions, EffectPreset } from "./types";
@@ -41,9 +39,6 @@ export function App() {
 	const [processedFileName, setProcessedFileName] = useState<
 		string | undefined
 	>();
-	const [processedAudioUrl, setProcessedAudioUrl] = useState<string | null>(
-		null,
-	);
 
 	// Config state
 	const [maxSizeMB, setMaxSizeMB] = useState(100);
@@ -69,7 +64,6 @@ export function App() {
 			setIsUploading(true);
 			setProcessingState("idle");
 			setDownloadId(null);
-			setProcessedAudioUrl(null);
 
 			try {
 				const result = await uploadAudio(file, onProgress);
@@ -97,17 +91,14 @@ export function App() {
 		if (originalAudioUrl) {
 			URL.revokeObjectURL(originalAudioUrl);
 		}
-		if (processedAudioUrl) {
-			URL.revokeObjectURL(processedAudioUrl);
-		}
 		setUploadedFile(null);
 		setFileId(null);
 		setOriginalAudioUrl(null);
 		setProcessingState("idle");
 		setDownloadId(null);
 		setProcessedFileName(undefined);
-		setProcessedAudioUrl(null);
-	}, [originalAudioUrl, processedAudioUrl]);
+		setPreviewEffectOptions(null);
+	}, [originalAudioUrl]);
 
 	const handleApplyEffect = useCallback(
 		async (
@@ -140,7 +131,6 @@ export function App() {
 					} else if (event.type === "complete" && event.result) {
 						setDownloadId(event.result.downloadId);
 						setProcessedFileName(event.result.fileName);
-						setProcessedAudioUrl(getDownloadUrl(event.result.downloadId));
 						setProcessingState("complete");
 						setProcessingProgress(100);
 					} else if (event.type === "error") {
@@ -222,15 +212,6 @@ export function App() {
 							/>
 						</section>
 
-						{/* Original Audio Player */}
-						{originalAudioUrl && uploadedFile && (
-							<TonePlayer
-								src={originalAudioUrl}
-								fileName={uploadedFile.name}
-								label="Original Audio"
-							/>
-						)}
-
 						{/* Effects Section */}
 						<section className="space-y-4">
 							<h3 className="text-lg font-semibold flex items-center gap-2">
@@ -266,26 +247,6 @@ export function App() {
 							onDownload={handleDownload}
 						/>
 
-						{/* Processed Audio Player */}
-						{processedAudioUrl &&
-							processingState === "complete" &&
-							processedFileName && (
-								<section className="space-y-4">
-									<h3 className="text-lg font-semibold flex items-center gap-2">
-										<span className="w-6 h-6 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-sm font-bold">
-											3
-										</span>
-										Preview & Download
-									</h3>
-									<TonePlayer
-										src={processedAudioUrl}
-										fileName={processedFileName}
-										showDownload
-										onDownload={handleDownload}
-										label="Processed Audio"
-									/>
-								</section>
-							)}
 					</div>
 				</main>
 
