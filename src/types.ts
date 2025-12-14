@@ -31,7 +31,7 @@ export interface AudioProcessingOptions {
 
 /** Preset configurations */
 export const EFFECT_PRESETS: Record<Exclude<EffectPreset, "custom">, Omit<AudioProcessingOptions, "preset">> = {
-    nightcore: { speed: 1.25, pitch: 4, reverb: 0, bassBoost: 0 },
+    nightcore: { speed: 1.2, pitch: 4, reverb: 0, bassBoost: 0 },
     slowreverb: { speed: 0.85, pitch: 0, reverb: 70, bassBoost: 0 },
     vaporwave: { speed: 0.8, pitch: -3, reverb: 40, bassBoost: 0 },
     daycore: { speed: 0.9, pitch: -2, reverb: 0, bassBoost: 0 },
